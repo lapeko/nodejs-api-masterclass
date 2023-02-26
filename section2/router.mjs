@@ -1,9 +1,10 @@
 import {
-  createTodo,
-  getTodo,
   getTodos,
+  getTodo,
+  createTodo,
   updateTodo,
   modifyTodo,
+  deleteTodo,
 } from "./controller.mjs";
 
 const todosPath = "/todos";

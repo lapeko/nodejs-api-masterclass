@@ -1,57 +1,137 @@
-import { todos } from "./data.mjs";
-import { getTodoId } from "./util.mjs";
+import LikeDb from "./like-db.mjs";
+import { ErrorMessage, StatusCode, getJsonHeader, getTodoId } from "./util.mjs";
 
-export const getTodos = (req, res) => {
-  res.writeHeader(200, {
-    "Content-Type": "application/json",
-  });
+const db = new LikeDb();
 
-  res.end(JSON.stringify(todos));
+export const getTodos = async (req, res) => {
+  const data = await db.getTodos();
+
+  res.writeHeader(StatusCode.OK, getJsonHeader());
+
+  res.end(JSON.stringify({ ok: true, data }));
 };
 
-export const getTodo = (req, res) => {
+export const getTodo = async (req, res) => {
+  let statusCode = StatusCode.NotFound;
+  const response = {
+    ok: false,
+    data: null,
+    message: "Todo with given id does not exist.",
+  };
+
   const todoId = getTodoId(req);
-  res.writeHeader(200, {
-    "Content-Type": "application/json",
-  });
+  const data = await db.getTodoById(todoId);
 
-  res.end(JSON.stringify(todos.filter((todo) => todo.id === todoId)[0]));
+  if (data) {
+    response.ok = true;
+    response.data = data;
+    delete response.message;
+    statusCode = StatusCode.OK;
+  }
+
+  res.writeHeader(statusCode, getJsonHeader());
+
+  res.end(JSON.stringify(response));
 };
 
-export const createTodo = (req, res) => {
-  todos.push(req.body);
-  res.writeHeader(201, {
-    "Content-Type": "application/json",
-  });
-  res.end(JSON.stringify(todos));
+export const createTodo = async (req, res) => {
+  let statusCode = StatusCode.BadRequest;
+  const response = {
+    ok: true,
+    data: null,
+    message: ErrorMessage.NotValid,
+  };
+
+  const { text } = req.body;
+  if (text != null) {
+    response.data = await db.insertTodo({ text, done: false });
+    response.ok = true;
+    delete response.message;
+    statusCode = StatusCode.Created;
+  }
+
+  res.writeHeader(statusCode, getJsonHeader());
+  res.end(JSON.stringify(response));
 };
 
-export const updateTodo = (req, res) => {
+export const updateTodo = async (req, res) => {
+  let statusCode = StatusCode.BadRequest;
+  const response = {
+    ok: false,
+    data: null,
+    message: ErrorMessage.NotValid,
+  };
+
   const todoId = getTodoId(req);
-  const index = todos.findIndex((todo) => todoId === todo.id);
-  todos[index] = req.body;
-  res.writeHeader(200, {
-    "Content-Type": "application/json",
-  });
-  res.end(JSON.stringify(todos));
+
+  const { text, done } = req.body;
+  if (text != null && req != null) {
+    statusCode = StatusCode.NotFound;
+    response.message = ErrorMessage.NotExist;
+
+    response.data = await db.updateTodo(todoId, { text, done });
+  }
+
+  if (response.data) {
+    statusCode = StatusCode.OK;
+    delete response.message;
+    response.ok = true;
+  }
+
+  res.writeHeader(statusCode, getJsonHeader());
+  res.end(JSON.stringify(response));
 };
 
-export const modifyTodo = (req, res) => {
+export const modifyTodo = async (req, res) => {
+  let statusCode = StatusCode.BadRequest;
+  const response = {
+    ok: false,
+    data: null,
+    message: ErrorMessage.NotValid,
+  };
+
   const todoId = getTodoId(req);
-  const index = todos.findIndex((todo) => todoId === todo.id);
-  todos[index] = { ...todos[index], ...req.body };
-  res.writeHeader(200, {
-    "Content-Type": "application/json",
-  });
-  res.end(JSON.stringify(todos));
+
+  const { text, done } = req.body;
+  if (text != null || done != null) {
+    statusCode = StatusCode.NotFound;
+    response.message = ErrorMessage.NotExist;
+    const modifyingFields = {
+      ...(text != null && { text }),
+      ...(done != null && { done }),
+    };
+    response.data = await db.updateTodo(todoId, modifyingFields);
+  }
+
+  console.log(response.data);
+
+  if (response.data) {
+    statusCode = StatusCode.OK;
+    delete response.message;
+    response.ok = true;
+  }
+
+  res.writeHeader(statusCode, getJsonHeader());
+  res.end(JSON.stringify(response));
 };
 
-export const deleteTodo = () => {
+export const deleteTodo = async (req, res) => {
+  let statusCode = StatusCode.NotFound;
+  const response = {
+    ok: false,
+    data: null,
+    message: ErrorMessage.NotExist,
+  };
+
   const todoId = getTodoId(req);
-  const index = todos.findIndex((todo) => todoId === todo.id);
-  todos.splice(index, 1);
-  res.writeHeader(200, {
-    "Content-Type": "application/json",
-  });
-  res.end(JSON.stringify(todos));
+  response.data = await db.delete(todoId);
+
+  if (response.data) {
+    response.ok = true;
+    delete response.message;
+    statusCode = StatusCode.OK;
+  }
+
+  res.writeHeader(statusCode, getJsonHeader());
+  res.end(JSON.stringify(response));
 };

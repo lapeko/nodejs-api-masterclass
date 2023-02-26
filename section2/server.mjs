@@ -9,8 +9,7 @@ const serverCallback = (req, res) => {
     })
     .on("end", () => {
       const body = chunks.length ? JSON.parse(chunks.toString()) : {};
-      req.body = body;
-      router(req, res);
+      router({ ...req, body }, res);
     });
 };
 
